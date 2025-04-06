@@ -1,0 +1,19 @@
+services:
+  speech_to_text_transcriber:
+    image: speech_to_text_transcriber
+    container_name: speech_to_text_transcriber_container
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - dev
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app
+
+networks:
+  dev:
+    external: true
