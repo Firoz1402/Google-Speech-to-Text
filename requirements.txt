@@ -1,0 +1,8 @@
+Django==4.2
+channels==4.0.0
+channels-redis==4.1.0
+requests==2.31.0
+daphne==4.0.0
+redis==4.5.5
+python-magic==0.4.24  
+aiohttp

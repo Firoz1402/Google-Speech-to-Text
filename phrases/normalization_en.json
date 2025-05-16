@@ -1,0 +1,8 @@
+[
+    { "search": "Swablabhan Samiti", "replace": "SWSM" },
+    { "search": "Customer Service Point", "replace": "CSP" },
+    { "search": "Livelihood points", "replace": "LP" },
+    { "search": "Rural retail point", "replace": "RRP" }
+
+]
+  
