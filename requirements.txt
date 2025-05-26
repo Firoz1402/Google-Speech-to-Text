@@ -6,3 +6,11 @@ daphne==4.0.0
 redis==4.5.5
 python-magic==0.4.24  
 aiohttp
+dotenv
+pydantic
+anyio
+asgiref==3.6.0
+cachetools==5.3.0
+httpx==0.25.0
+cachetools==5.3.0
+websockets==11.0

@@ -6,7 +6,7 @@ from app.routing import websocket_urlpatterns
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'app.settings')
 
-
+# Initialize Django ASGI application first
 django_asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter({

@@ -1,3 +1,4 @@
+import sys
 import os
 import requests
 import base64
@@ -9,8 +10,16 @@ import json
 import aiohttp
 import re
 from functools import lru_cache
+# Add external_packages to sys.path for local google module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../external_packages')))
+from dotenv import load_dotenv
+import google.genai as genai
 
-GCP_API_KEY = os.getenv('GCP_API_KEY')
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GCP_API_KEY = os.getenv("GCP_API_KEY")
+
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def detect_audio_format(audio_bytes):
@@ -92,12 +101,12 @@ async def stt_processing(audio_bytes, language):
             "useEnhanced": True,
             "model": "latest_long",
             "speechContexts": [{
-            "phrases": phrases,
+                "phrases": phrases,
                 "boost": 40.0  # Increase phrase priority
             }],
             "transcriptNormalization": {
-            "entries": load_normalization_rules(language)
-        }
+                "entries": load_normalization_rules(language)
+            }
         })
     # Hindi configuration
     else:
@@ -196,56 +205,6 @@ def apply_normalization(text, rules):
         print(f"Normalization failed: {str(e)}")
         return text
 
-async def translate_text(text, source_lang, target_lang):
-    """Enhanced translation with glossary preservation using Gemini prompt"""
-    try:
-        # 1. Load linguistic resources
-        glossary = load_glossary(source_lang, target_lang)
-        norm_rules = load_normalization_rules(target_lang)
-
-        # 2. Protect glossary terms
-        protected_text, placeholders = create_placeholders(text, glossary)
-        print(f"Protected text: {protected_text}")
-
-        # 3. Construct translation prompt
-        prompt = (
-            f"Translate the following text from {source_lang} to {target_lang}. "
-            f"Ensure that the following terms remain unchanged: {', '.join(glossary)}.\n"
-            f"Text: {protected_text}"
-        )
-
-        gemini_endpoint = "https://api.gemini.com/translate"
-        headers = {
-            "Authorization": f"Bearer {os.getenv('GEMINI_API_KEY')}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "prompt": prompt,
-            "max_tokens": 1000
-        }
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(gemini_endpoint, headers=headers, json=payload) as response:
-                if response.status != 200:
-                    raise Exception(f"Gemini API Error: {await response.text()}")
-
-                result = await response.json()
-                translated = result.get('text', '').strip()
-
-        # 4. Restore and normalize
-        restored = restore_terms(translated, placeholders)
-        normalized = apply_normalization(restored, norm_rules)
-
-        print(f"Final translation: {normalized}")
-        return normalized
-
-    except Exception as e:
-        print(f"Translation failed: {str(e)}")
-        raise
-
-
-#For TTS
-
 async def tts_processing(text, language):
     endpoint = "https://texttospeech.googleapis.com/v1/text:synthesize"
     
@@ -256,7 +215,7 @@ async def tts_processing(text, language):
     print("in TTS Now")
     async with aiohttp.ClientSession() as session:
         async with session.post(
-            f"{endpoint}?key={GCP_API_KEY}",  
+            f"{endpoint}?key={GCP_API_KEY}",
             json={
                 "input": {"text": text},
                 "voice": voice_config,
@@ -274,3 +233,40 @@ async def tts_processing(text, language):
             data = await response.json()
             
             return data['audioContent']
+
+
+async def translate_text(text, source_lang, target_lang):
+    
+    try:
+        
+        glossary = load_glossary(source_lang, target_lang)
+        norm_rules = load_normalization_rules(target_lang)
+
+        
+        protected_text, placeholders = create_placeholders(text, glossary)
+        print(f"Protected text: {protected_text}")
+
+        
+        prompt = (
+            f"You are a proficient translator and only respond with the translation of the given texts. Translate the following text from {source_lang} to {target_lang}. "
+            f"Ensure that the following terms retain themselves in the translation and do not gets translated literally {', '.join(glossary)}. Keep the final translation words in the text of the {target_lang}. Do not provide anything else, just provide the translated text directly in your response.\n"
+            f"Text to translate: {protected_text}"
+        )
+
+        
+        gemini_response = gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        translated = gemini_response.text.strip() if hasattr(gemini_response, 'text') else str(gemini_response)
+        
+        
+        restored = restore_terms(translated, placeholders)
+        normalized = apply_normalization(restored, norm_rules)
+
+        print(f"Final translation: {normalized}")
+        return normalized
+
+    except Exception as e:
+        print(f"Translation failed: {str(e)}")
+        raise
